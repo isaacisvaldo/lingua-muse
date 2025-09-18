@@ -30,11 +30,13 @@ export default function Dictionary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentWord, setCurrentWord] = useState<typeof mockWordData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDefinitions, setShowDefinitions] = useState(false);
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
     
     setIsLoading(true);
+    setShowDefinitions(false);
     
     // Simulate API call delay
     setTimeout(() => {
@@ -97,11 +99,15 @@ export default function Dictionary() {
 
         {currentWord && !isLoading && (
           <div className="max-w-4xl mx-auto space-y-8">
-            <WordCard wordData={currentWord} />
-            <WordGames 
-              word={currentWord.word} 
-              synonyms={currentWord.synonyms} 
-            />
+            {!showDefinitions ? (
+              <WordGames 
+                word={currentWord.word} 
+                synonyms={currentWord.synonyms}
+                onShowDefinitions={() => setShowDefinitions(true)}
+              />
+            ) : (
+              <WordCard wordData={currentWord} />
+            )}
           </div>
         )}
 

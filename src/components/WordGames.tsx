@@ -8,9 +8,10 @@ interface WordGamesProps {
   word: string;
   synonyms?: string[];
   className?: string;
+  onShowDefinitions?: () => void;
 }
 
-export function WordGames({ word, synonyms = [], className }: WordGamesProps) {
+export function WordGames({ word, synonyms = [], className, onShowDefinitions }: WordGamesProps) {
   const [currentGame, setCurrentGame] = useState<'anagram' | 'synonym' | 'image' | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [score, setScore] = useState(0);
@@ -72,20 +73,31 @@ export function WordGames({ word, synonyms = [], className }: WordGamesProps) {
         <div className="p-2 bg-primary/10 rounded-lg">
           <Gamepad2 className="h-6 w-6 text-primary" />
         </div>
-        <div>
+        <div className="flex-1">
           <h3 className="font-serif font-semibold text-lg text-foreground">
             Jogos de Palavras
           </h3>
           <p className="text-muted-foreground text-sm">
-            Teste seus conhecimentos de forma divertida
+            Teste seus conhecimentos antes de ver as respostas
           </p>
         </div>
-        {score > 0 && (
-          <div className="ml-auto flex items-center gap-2 text-warning">
-            <Trophy className="h-4 w-4" />
-            <span className="font-medium">{score} pontos</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {score > 0 && (
+            <div className="flex items-center gap-2 text-warning">
+              <Trophy className="h-4 w-4" />
+              <span className="font-medium">{score} pontos</span>
+            </div>
+          )}
+          {onShowDefinitions && (
+            <Button
+              variant="secondary"
+              onClick={onShowDefinitions}
+              className="text-sm"
+            >
+              Ver Definições
+            </Button>
+          )}
+        </div>
       </div>
 
       {!currentGame && (
