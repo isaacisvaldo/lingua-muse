@@ -94,13 +94,36 @@ export function WordCard({ wordData, className }: WordCardProps) {
           variant: "destructive",
         });
       };
-      audio.play();
-    } else {
-      // Simulate pronunciation (in a real app, you'd integrate with a TTS service)
-      toast({
-        title: "Pronúncia",
-        description: `${wordData.word} ${wordData.phonetic || ''}`,
+      audio.play().catch(() => {
+        setIsPlayingAudio(false);
+        toast({
+          title: "Erro",
+          description: "Não foi possível reproduzir o áudio.",
+          variant: "destructive",
+        });
       });
+    } else {
+      // Use Web Speech API for text-to-speech
+      if ('speechSynthesis' in window) {
+        setIsPlayingAudio(true);
+        const utterance = new SpeechSynthesisUtterance(wordData.word);
+        utterance.lang = 'pt-BR';
+        utterance.rate = 0.8;
+        utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => {
+          setIsPlayingAudio(false);
+          toast({
+            title: "Pronúncia",
+            description: `${wordData.word} ${wordData.phonetic || ''}`,
+          });
+        };
+        speechSynthesis.speak(utterance);
+      } else {
+        toast({
+          title: "Pronúncia",
+          description: `${wordData.word} ${wordData.phonetic || ''}`,
+        });
+      }
     }
   };
 
@@ -172,9 +195,9 @@ export function WordCard({ wordData, className }: WordCardProps) {
               </p>
               
               {definition.example && (
-                <div className="bg-accent-light/50 rounded-md p-3 border-l-4 border-accent">
-                  <p className="text-accent-foreground italic">
-                    <span className="font-medium">Exemplo:</span> "{definition.example}"
+                <div className="bg-accent-light rounded-md p-3 border-l-4 border-accent">
+                  <p className="text-foreground italic">
+                    <span className="font-medium text-accent">Exemplo:</span> "{definition.example}"
                   </p>
                 </div>
               )}

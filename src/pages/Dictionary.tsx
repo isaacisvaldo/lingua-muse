@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import { SearchInput } from "@/components/SearchInput";
 import { WordCard } from "@/components/WordCard";
+import { WordGames } from "@/components/WordGames";
 import dictionaryIcon from "@/assets/dictionary-icon.jpg";
 
 // Mock data - in a real app, this would come from an API
@@ -95,8 +96,12 @@ export default function Dictionary() {
         )}
 
         {currentWord && !isLoading && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-8">
             <WordCard wordData={currentWord} />
+            <WordGames 
+              word={currentWord.word} 
+              synonyms={currentWord.synonyms} 
+            />
           </div>
         )}
 
