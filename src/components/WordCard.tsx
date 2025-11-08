@@ -219,7 +219,7 @@ export function WordCard({ wordData, className }: WordCardProps) {
                   {wordData.synonyms.map((synonym, index) => (
                     <span
                       key={index}
-                      className="bg-accent-light text-accent-foreground px-3 py-1 rounded-full text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                      className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
                     >
                       {synonym}
                     </span>
@@ -237,7 +237,7 @@ export function WordCard({ wordData, className }: WordCardProps) {
                   {wordData.antonyms.map((antonym, index) => (
                     <span
                       key={index}
-                      className="bg-warning/10 text-warning px-3 py-1 rounded-full text-sm hover:bg-warning hover:text-warning-foreground transition-colors cursor-pointer"
+                      className="bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-destructive hover:text-destructive-foreground transition-colors cursor-pointer"
                     >
                       {antonym}
                     </span>
