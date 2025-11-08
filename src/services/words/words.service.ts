@@ -106,6 +106,25 @@ export async function getWordById(id: number): Promise<Word> {
 export async function getWordByTerm(term: string): Promise<Word> {
   return fetchData(`/words/word/${encodeURIComponent(term)}`);
 }
+interface SearchWordSuggestionParams extends FilterParams {
+ q?: string;
+ 
+}
+export interface SuggestionItem {
+  term: string;
+  id: number;
+}
+
+// Agora retorna SuggestionItem[] mas o componente usa só .term
+export async function getWordSuggestions(
+  params: SearchWordSuggestionParams = {}
+): Promise<SuggestionItem[]> {
+  const { q, limit = 10 } = params;
+  if (!q || q.trim().length < 2) return [];
+
+  return fetchDataWithFilter(`/util/suggestions`, { q: q.trim(), limit });
+}
+
 
 /**
  * Cria uma nova palavra.
