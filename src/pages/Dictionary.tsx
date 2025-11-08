@@ -1,9 +1,20 @@
 import { useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, User, LogOut } from "lucide-react";
 import { SearchInput } from "@/components/SearchInput";
 import { WordCard } from "@/components/WordCard";
 import { WordGames } from "@/components/WordGames";
 import dictionaryIcon from "@/assets/dictionary-icon.jpg";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button-custom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
 
 // Mock data - in a real app, this would come from an API
 const mockWordData = {
@@ -27,10 +38,17 @@ const mockWordData = {
 };
 
 export default function Dictionary() {
+  const { user, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentWord, setCurrentWord] = useState<typeof mockWordData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentGame, setCurrentGame] = useState<string | null>(null);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -54,15 +72,46 @@ export default function Dictionary() {
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-center gap-3">
-            <img 
-              src={dictionaryIcon} 
-              alt="Dicionário" 
-              className="w-10 h-10 rounded-lg shadow-sm"
-            />
-            <h1 className="text-2xl font-serif font-bold text-gradient-primary">
-              Dicionário Interativo
-            </h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img 
+                src={dictionaryIcon} 
+                alt="Dicionário" 
+                className="w-10 h-10 rounded-lg shadow-sm"
+              />
+              <h1 className="text-2xl font-serif font-bold text-gradient-primary">
+                Dicionário Interativo
+              </h1>
+            </div>
+            
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-10 w-10 rounded-full p-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                      <User className="w-5 h-5 text-primary-foreground" />
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium">{user?.name}</p>
+                      <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" onClick={() => navigate("/login")}>
+                Login
+              </Button>
+            )}
           </div>
         </div>
       </header>
