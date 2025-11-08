@@ -1,74 +1,66 @@
 import { useState } from "react";
-import { Heart, Copy, Share2, Volume2, Image } from "lucide-react";
+import { Heart, Copy, Share2, Volume2, Image as ImageIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "./ui/button-custom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
-interface WordData {
-  word: string;
-  phonetic?: string;
-  definitions: Array<{
-    partOfSpeech: string;
-    meaning: string;
-    example?: string;
-  }>;
-  synonyms?: string[];
-  antonyms?: string[];
-  audioUrl?: string;
-}
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { type Word } from "@/services/words/words.service";
 
 interface WordCardProps {
-  wordData: WordData;
+  wordData: Word;
   className?: string;
 }
 
 export function WordCard({ wordData, className }: WordCardProps) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [openDefinitions, setOpenDefinitions] = useState<number[]>([]);
   const { toast } = useToast();
+
+  const toggleDefinition = (id: number) => {
+    setOpenDefinitions(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(wordData.word);
+      await navigator.clipboard.writeText(wordData.term);
       toast({
         title: "Copiado!",
-        description: `"${wordData.word}" foi copiada para a área de transferência.`,
+        description: `"${wordData.term}" foi copiada para a área de transferência.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Erro",
-        description: "Não foi possível copiar a palavra.",
+        description: "Não foi possível copiar.",
         variant: "destructive",
       });
     }
   };
 
   const handleShare = async () => {
+    const firstMeaning = wordData.definitions[0]?.meaning || "";
+    const shareData = {
+      title: `Definição de "${wordData.term}"`,
+      text: `${wordData.term}: ${firstMeaning}`,
+      url: window.location.href,
+    };
+
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: `Definição de "${wordData.word}"`,
-          text: `${wordData.word}: ${wordData.definitions[0]?.meaning}`,
-          url: window.location.href,
-        });
-      } catch (error) {
-        // User cancelled sharing
+        await navigator.share(shareData);
+      } catch {
+        // Usuário cancelou
       }
     } else {
-      // Fallback - copy to clipboard
-      const shareText = `${wordData.word}: ${wordData.definitions[0]?.meaning}\n\nVia Dicionário Interativo`;
+      const text = `${shareData.text}\n\nVia Dicionário Interativo`;
       try {
-        await navigator.clipboard.writeText(shareText);
-        toast({
-          title: "Link copiado!",
-          description: "Definição copiada para compartilhar.",
-        });
-      } catch (error) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível compartilhar.",
-          variant: "destructive",
-        });
+        await navigator.clipboard.writeText(text);
+        toast({ title: "Copiado para compartilhar!", description: text });
+      } catch {
+        toast({ title: "Erro", description: "Não foi possível copiar.", variant: "destructive" });
       }
     }
   };
@@ -76,8 +68,8 @@ export function WordCard({ wordData, className }: WordCardProps) {
   const handleFavorite = () => {
     setIsFavorited(!isFavorited);
     toast({
-      title: isFavorited ? "Removido dos favoritos" : "Adicionado aos favoritos",
-      description: `"${wordData.word}" ${isFavorited ? 'foi removida' : 'foi adicionada'} aos favoritos.`,
+      title: isFavorited ? "Removido" : "Adicionado",
+      description: `"${wordData.term}" ${isFavorited ? "removido" : "adicionado"} aos favoritos!`,
     });
   };
 
@@ -88,164 +80,187 @@ export function WordCard({ wordData, className }: WordCardProps) {
       audio.onended = () => setIsPlayingAudio(false);
       audio.onerror = () => {
         setIsPlayingAudio(false);
-        toast({
-          title: "Erro",
-          description: "Não foi possível reproduzir o áudio.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "Áudio não disponível.", variant: "destructive" });
       };
-      audio.play().catch(() => {
-        setIsPlayingAudio(false);
-        toast({
-          title: "Erro",
-          description: "Não foi possível reproduzir o áudio.",
-          variant: "destructive",
-        });
-      });
+      audio.play().catch(() => setIsPlayingAudio(false));
+    } else if ('speechSynthesis' in window) {
+      setIsPlayingAudio(true);
+      const utterance = new SpeechSynthesisUtterance(wordData.term);
+      utterance.lang = 'pt-BR';
+      utterance.rate = 0.8;
+      utterance.onend = () => setIsPlayingAudio(false);
+      utterance.onerror = () => setIsPlayingAudio(false);
+      speechSynthesis.speak(utterance);
     } else {
-      // Use Web Speech API for text-to-speech
-      if ('speechSynthesis' in window) {
-        setIsPlayingAudio(true);
-        const utterance = new SpeechSynthesisUtterance(wordData.word);
-        utterance.lang = 'pt-BR';
-        utterance.rate = 0.8;
-        utterance.onend = () => setIsPlayingAudio(false);
-        utterance.onerror = () => {
-          setIsPlayingAudio(false);
-          toast({
-            title: "Pronúncia",
-            description: `${wordData.word} ${wordData.phonetic || ''}`,
-          });
-        };
-        speechSynthesis.speak(utterance);
-      } else {
-        toast({
-          title: "Pronúncia",
-          description: `${wordData.word} ${wordData.phonetic || ''}`,
-        });
-      }
+      toast({
+        title: "Pronúncia",
+        description: wordData.phonetic ? `${wordData.term} ${wordData.phonetic}` : wordData.term,
+      });
     }
   };
 
+  const synonyms = wordData.synonyms.map(s => s.term);
+  const antonyms = wordData.antonyms.map(a => a.term);
+
   return (
-    <div className={cn("bg-card rounded-xl shadow-card card-hover p-6 animate-fade-in", className)}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+    <div className={cn("bg-card rounded-2xl shadow-card card-hover p-8 animate-fade-in", className)}>
+      {/* Header com palavra + ações */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
         <div className="flex-1">
-          <h1 className="text-3xl font-serif font-bold text-foreground mb-2">
-            {wordData.word}
+          <h1 className="text-5xl font-serif font-bold text-foreground mb-3">
+            {wordData.term}
+            {wordData.imageUrl && (
+              <img
+                src={wordData.imageUrl}
+                alt={wordData.term}
+                className="inline-block ml-4 w-20 h-20 object-cover rounded-lg shadow-md border"
+              />
+            )}
           </h1>
           {wordData.phonetic && (
-            <p className="text-muted-foreground text-lg font-mono">
+            <p className="text-2xl text-muted-foreground font-mono italic">
               {wordData.phonetic}
             </p>
           )}
         </div>
-        
-        <div className="flex items-center gap-2 ml-4">
-          <Button
-            variant="audio"
-            onClick={handlePlayAudio}
-            disabled={isPlayingAudio}
-            title="Ouvir pronúncia"
-          >
-            <Volume2 className={cn("h-4 w-4", isPlayingAudio && "animate-pulse")} />
+
+        <div className="flex items-center gap-3">
+          <Button variant="audio" size="lg" onClick={handlePlayAudio} disabled={isPlayingAudio}>
+            <Volume2 className={cn("h-5 w-5", isPlayingAudio && "animate-pulse")} />
           </Button>
-          
-          <Button
-            variant="copy"
-            onClick={handleCopy}
-            title="Copiar palavra"
-          >
-            <Copy className="h-4 w-4" />
+          <Button variant="ghost" size="lg" onClick={handleCopy} title="Copiar">
+            <Copy className="h-5 w-5" />
           </Button>
-          
           <Button
-            variant="favorite"
+            variant="ghost"
+            size="lg"
             onClick={handleFavorite}
             data-favorited={isFavorited}
-            title={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+            title="Favoritar"
           >
-            <Heart className={cn("h-4 w-4", isFavorited && "fill-current")} />
+            <Heart className={cn("h-5 w-5", isFavorited && "fill-red-500 text-red-500")} />
           </Button>
-          
-          <Button
-            variant="share"
-            onClick={handleShare}
-            title="Compartilhar"
-          >
-            <Share2 className="h-4 w-4" />
+          <Button variant="ghost" size="lg" onClick={handleShare} title="Compartilhar">
+            <Share2 className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      {/* Definitions */}
+      {/* Definições com Collapsible */}
       <div className="space-y-6">
-        {wordData.definitions.map((definition, index) => (
-          <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
-            <div className="bg-secondary/30 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-                  {definition.partOfSpeech}
-                </span>
-              </div>
-              
-              <p className="text-foreground text-lg leading-relaxed mb-3">
-                {definition.meaning}
-              </p>
-              
-              {definition.example && (
-                <div className="bg-accent-light rounded-md p-3 border-l-4 border-accent">
-                  <p className="text-foreground italic">
-                    <span className="font-medium text-accent">Exemplo:</span> "{definition.example}"
+        {wordData.definitions.map((def, index) => (
+          <Collapsible
+            key={def.id}
+            open={openDefinitions.includes(def.id)}
+            onOpenChange={() => toggleDefinition(def.id)}
+            className="bg-secondary/20 rounded-xl overflow-hidden border border-border/50"
+          >
+            <CollapsibleTrigger className="w-full p-6 text-left hover:bg-secondary/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Badge variant="secondary" className="text-sm font-bold">
+                    {index + 1}. {def.partOfSpeech}
+                  </Badge>
+                  <p className="text-lg font-medium text-foreground line-clamp-2">
+                    {def.meaning}
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
+                {def.examples.length > 0 && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="text-sm">{def.examples.length} exemplo{def.examples.length > 1 ? "s" : ""}</span>
+                    {openDefinitions.includes(def.id) ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                )}
+              </div>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent className="px-6 pb-6 border-t border-border/30">
+              <div className="space-y-4 mt-4">
+                {def.examples.map((ex) => (
+                  <div
+                    key={ex.id}
+                    className="bg-accent/10 rounded-lg p-4 border-l-4 border-accent"
+                  >
+                    <p className="text-foreground italic leading-relaxed">
+                      "{ex.sentence}"
+                    </p>
+                    {ex.translation && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        <span className="font-medium">Tradução:</span> {ex.translation}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         ))}
       </div>
 
-      {/* Synonyms and Antonyms */}
-      {(wordData.synonyms?.length || wordData.antonyms?.length) && (
-        <div className="mt-8 pt-6 border-t border-border">
-          <div className="grid md:grid-cols-2 gap-6">
-            {wordData.synonyms?.length && (
-              <div className="animate-scale-in">
-                <h3 className="font-serif font-semibold text-lg text-foreground mb-3">
+      {/* Sinônimos e Antônimos */}
+      {(synonyms.length > 0 || antonyms.length > 0) && (
+        <div className="mt-10 pt-8 border-t border-border/50">
+          <div className="grid md:grid-cols-2 gap-8">
+            {synonyms.length > 0 && (
+              <div>
+                <h3 className="font-serif text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
                   Sinônimos
+                  <Badge variant="outline">{synonyms.length}</Badge>
                 </h3>
-                <div className="flex flex-wrap gap-2">
-                  {wordData.synonyms.map((synonym, index) => (
+                <div className="flex flex-wrap gap-3">
+                  {synonyms.map((syn) => (
                     <span
-                      key={index}
-                      className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                      key={syn}
+                      className="bg-primary/10 text-primary border border-primary/30 px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-white transition-all cursor-pointer"
+                      onClick={() => {
+                        // Opcional: buscar ao clicar
+                        window.location.href = `/?q=${syn}`;
+                      }}
                     >
-                      {synonym}
+                      {syn}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-            
-            {wordData.antonyms?.length && (
-              <div className="animate-scale-in">
-                <h3 className="font-serif font-semibold text-lg text-foreground mb-3">
+
+            {antonyms.length > 0 && (
+              <div>
+                <h3 className="font-serif text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
                   Antônimos
+                  <Badge variant="outline">{antonyms.length}</Badge>
                 </h3>
-                <div className="flex flex-wrap gap-2">
-                  {wordData.antonyms.map((antonym, index) => (
+                <div className="flex flex-wrap gap-3">
+                  {antonyms.map((ant) => (
                     <span
-                      key={index}
-                      className="bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-destructive hover:text-destructive-foreground transition-colors cursor-pointer"
+                      key={ant}
+                      className="bg-destructive/10 text-destructive border border-destructive/30 px-4 py-2 rounded-full text-sm font-medium hover:bg-destructive hover:text-white transition-all cursor-pointer"
                     >
-                      {antonym}
+                      {ant}
                     </span>
                   ))}
                 </div>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Rodapé com imagem (se houver) */}
+      {wordData.imageUrl && (
+        <div className="mt-10 text-center">
+          <img
+            src={wordData.imageUrl}
+            alt={wordData.term}
+            className="max-w-md mx-auto rounded-xl shadow-2xl border"
+          />
+          <p className="text-sm text-muted-foreground mt-3">
+            <ImageIcon className="inline h-4 w-4" /> Ilustração de {wordData.term}
+          </p>
         </div>
       )}
     </div>

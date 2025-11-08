@@ -5,10 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Welcome from "./pages/Welcome";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+import Login from "./pages/auth/Login";
+import Signup from "./pages/auth/Signup";
 import Dictionary from "./pages/Dictionary";
-import NotFound from "./pages/NotFound";
+import NotFound from "./pages/error/NotFound";
 
 const queryClient = new QueryClient();
 

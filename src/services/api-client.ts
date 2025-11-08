@@ -1,0 +1,158 @@
+import toast from 'react-hot-toast';
+
+const API_URL = import.meta.env.VITE_API_URL || "";
+
+export interface FilterParams {
+  page?: number;
+  limit?: number;
+  [key: string]: string | number | boolean | string[] | undefined | null;
+}
+
+async function handleResponse(
+  response: Response,
+  successMessage?: string,
+  method?: string,
+  showSuccessToastForGet: boolean = false
+): Promise<Response> {
+  if (response.ok) {
+    if (method !== 'GET' || showSuccessToastForGet) {
+      toast.dismiss();
+
+      toast.success(successMessage || 'Operação concluída com sucesso!');
+    }
+  } else {
+    if (response.status === 401) {
+      const errorBody = await response.json();
+      const errorMessage = errorBody?.message || "Unauthorized.";
+      toast.dismiss();
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+    try {
+      const errorBody = await response.json();
+      const errorMessage = errorBody?.message || "Ocorreu um erro inesperado ao se comunicar com a API.";
+      toast.dismiss();
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    } catch {
+      const errorMessage = "Ocorreu um erro inesperado ao se comunicar com a API.";
+      throw new Error(errorMessage);
+    }
+  }
+  return response;
+}
+
+async function apiFetch(
+  endpoint: string,
+  options: RequestInit = {},
+  successMessage?: string,
+  method?: string,
+  showSuccessToastForGet: boolean = false
+) {
+  const defaultHeaders: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.body instanceof FormData) {
+    delete defaultHeaders['Content-Type'];
+  }
+
+  const defaultOptions: RequestInit = {
+   // credentials: 'include',
+    headers: {
+      ...defaultHeaders,
+      ...(options.headers || {}),
+    },
+    ...options
+  };
+
+  const response = await fetch(`${API_URL}${endpoint}`, defaultOptions);
+  await handleResponse(response, successMessage, method, showSuccessToastForGet);
+  return response;
+}
+export async function fetchDataWithFilter<T extends FilterParams>(
+  endpoint: string,
+  params: T = {} as T,
+  showSuccessToast: boolean = false
+) {
+  const query = new URLSearchParams();
+  for (const key in params) {
+    const value = params[key];
+    if (value !== undefined && value !== null && value !== '') {
+      if (Array.isArray(value)) {
+        value.forEach(item => query.append(key, String(item)));
+      } else {
+        query.append(key, String(value));
+      }
+    }
+  }
+
+  const res = await apiFetch(
+    `${endpoint}?${query.toString()}`,
+    { method: 'GET' },
+    "Dados listados com sucesso!",
+    "GET",
+    showSuccessToast
+  );
+  return res.json();
+}
+
+export async function fetchData(endpoint: string, successMessage = "Dados carregados com sucesso!", showSuccessToast: boolean = false) {
+  const res = await apiFetch(
+    endpoint,
+    { method: 'GET' },
+    successMessage,
+    "GET",
+    showSuccessToast
+  );
+  return res.json();
+}
+
+export async function sendData<T>(endpoint: string, method: "POST" | "PUT" | "PATCH", body: T, successMessage = "Dados enviados com sucesso!") {
+  const res = await apiFetch(
+    endpoint,
+    { method, body: JSON.stringify(body) },
+    successMessage,
+    method
+  );
+  return res.json();
+}
+
+export async function deleteData(endpoint: string, successMessage = "Recurso removido com sucesso!") {
+  const res = await apiFetch(
+    endpoint,
+    { method: 'DELETE' },
+    successMessage,
+    "DELETE"
+  );
+
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return res.json();
+  }
+  return {};
+}
+
+// --- NOVA FUNÇÃO DE UPLOAD DE ARQUIVO ---
+export interface FileUploadResponse {
+  url: string;
+}
+export async function uploadFile(
+  endpoint: string,
+  file: File,
+  successMessage = "Arquivo enviado com sucesso!"
+): Promise<FileUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await apiFetch(
+    endpoint,
+    {
+      method: 'POST',
+      body: formData,
+    },
+    successMessage,
+    "POST"
+  );
+  return res.json();
+}

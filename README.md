@@ -1,73 +1,168 @@
-# Welcome to your Lovable project
 
-## Project info
 
-**URL**: https://lovable.dev/projects/2d6fe955-3825-4102-bb1e-ffb3e69882eb
+```md
+# 🧠 Interactive Dictionary — Frontend (React + Vite)
 
-## How can I edit this code?
+Uma aplicação Web moderna que transforma o aprendizado de palavras em algo interativo e divertido.  
+Permite pesquisar palavras, visualizar definições, exemplos, sinônimos, antônimos, ouvir pronúncia e jogar jogos educativos relacionados à palavra pesquisada.
 
-There are several ways of editing your application.
+> Este projeto começou quando **o irmão de um amigo me pediu ajuda** para melhorar uma interface simples de consulta de palavras.  
+> Acabou evoluindo para um dicionário completo com gamificação e visual moderno.
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2d6fe955-3825-4102-bb1e-ffb3e69882eb) and start prompting.
+## ✨ Funcionalidades
 
-Changes made via Lovable will be committed automatically to this repo.
+✅ Campo de busca com sugestões em tempo real  
+✅ Definições, exemplos, sinônimos e antônimos organizados visualmente  
+✅ Player de áudio para pronúncia da palavra  
+✅ Suporte multimídia (imagens relacionadas ao significado)  
+✅ Jogos educativos (ex.: anagramas, sinônimos, completar palavra)  
+✅ Ao iniciar o jogo, a definição é ocultada (evita spoilers 😄)  
+✅ Após sair do jogo, a definição volta automaticamente  
+✅ Interface responsiva e moderna com animações suaves  
+✅ Toasts e feedback visual para interações do usuário
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠 Tecnologias e Ferramentas
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+| Tecnologia | Uso |
+|------------|-----|
+| **React** | UI e componentes |
+| **Vite** | Build rápido e ambiente dev |
+| **React Query / Axios** | Comunicação com API |
+| **TypeScript** | Tipagem segura |
+| **Tailwind CSS + Shadcn/UI** | Estilização moderna e componentes |
+| **Lucide Icons** | Ícones bonitos e leves |
+| **Web Speech API (TTS)** | Pronúncia da palavra |
 
-Follow these steps:
+---
+
+## 📁 Estrutura do Projeto
+
+```
+
+📦 interactive_dictionary_frontend
+├─ 📁 src
+│  ├─ 📁 components
+│  │  ├─ SearchBar
+│  │  ├─ WordCard
+│  │  ├─ ExampleCard
+│  │  ├─ SynonymsAntonyms
+│  │  ├─ GamePanel
+│  │  └─ Toast
+│  ├─ 📁 games
+│  │  ├─ anagram
+│  │  ├─ synonyms-challenge
+│  │  └─ complete-word
+│  ├─ 📁 services
+│  │  └─ api.ts  (axios)
+│  ├─ 📁 hooks
+│  │  └─ useWordSearch.ts
+│  ├─ App.tsx
+│  └─ main.tsx
+├─ .env
+├─ package.json
+└─ README.md
+
+````
+
+---
+
+## ⚙️ Instalação e Execução
+
+Clone o repositório:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone https://github.com/seuusuario/interactive_dictionary_frontend.git
+cd interactive_dictionary_frontend
+````
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Instale as dependências:
 
-# Step 3: Install the necessary dependencies.
-npm i
+```sh
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Configure o arquivo `.env`:
+
+```
+VITE_API_URL=http://localhost:9696/api
+```
+
+Inicie o projeto:
+
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Inicia em:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+📍 [http://localhost:5173/](http://localhost:5173/)
 
-**Use GitHub Codespaces**
+---
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🌎 Comunicação com o Backend
 
-## What technologies are used for this project?
+O frontend consome os seguintes endpoints do backend:
 
-This project is built with:
+| Método                 | Endpoint                        | Função |
+| ---------------------- | ------------------------------- | ------ |
+| `GET /words?query=`    | busca inteligente               |        |
+| `GET /words/:id`       | retorna definições e multimídia |        |
+| `GET /words/:id/games` | inicia jogo baseado na palavra  |        |
+| `POST /auth/login`     | login                           |        |
+| `POST /auth/register`  | registro                        |        |
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Backend do projeto está disponível aqui:
+🔗 [https://github.com/*teu-backend-link](https://github.com/*teu-backend-link)*
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/2d6fe955-3825-4102-bb1e-ffb3e69882eb) and click on Share -> Publish.
+## 🎮 Jogos Educativos
 
-## Can I connect a custom domain to my Lovable project?
+O frontend renderiza jogos gerados pela API:
 
-Yes, you can!
+➡️ **Anagrama** — ordenar as letras para formar a palavra
+➡️ **Sinônimos** — escolha o sinônimo correto
+➡️ **Preencher a palavra** — completar a palavra com letras ocultas
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Cada jogo possui:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+* Pontuação
+* Feedback visual imediato
+* Exibição da definição somente após o jogo
+
+---
+
+## 🧾 Roadmap
+
+* [ ] Tema Dark/Light
+* [ ] Sistema de login + favoritos + histórico de buscas
+* [ ] Conquistas e streak de aprendizado
+* [ ] Modo “Desafio Diário”
+
+---
+
+## 🤝 Contribuições
+
+Sinta-se à vontade para abrir uma **issue** ou enviar um **pull request**.
+
+---
+
+## 👤 Autor
+
+Desenvolvido por **Isaac Isvaldo Bunga**
+
+🔗 LinkedIn — [https://www.linkedin.com/in/isaacbung4](https://www.linkedin.com/in/isaacbung4)
+🌐 Portfólio — [https://isaac-bunga-porfolio.vercel.app/](https://isaac-bunga-porfolio.vercel.app/)
+
+> “Aprender uma nova palavra não precisa ser chato.”
+
+---
+
+```
+
+---
+

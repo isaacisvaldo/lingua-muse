@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { BookOpen, User, LogOut } from "lucide-react";
+// src/pages/Dictionary.tsx
+
+import { useState, useEffect } from "react";
+import { BookOpen, User, LogOut, Search, Volume2 } from "lucide-react";
 import { SearchInput } from "@/components/SearchInput";
 import { WordCard } from "@/components/WordCard";
 import { WordGames } from "@/components/WordGames";
 import dictionaryIcon from "@/assets/dictionary-icon.jpg";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button-custom";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,75 +17,111 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
-
-// Mock data - in a real app, this would come from an API
-const mockWordData = {
-  word: "sabedoria",
-  phonetic: "/sa.be.do'ri.a/",
-  definitions: [
-    {
-      partOfSpeech: "substantivo feminino",
-      meaning: "Qualidade daquele que possui conhecimento profundo sobre algo; discernimento para avaliar e julgar adequadamente.",
-      example: "A sabedoria dos anciões é valorizada em muitas culturas."
-    },
-    {
-      partOfSpeech: "substantivo feminino",
-      meaning: "Conjunto de conhecimentos adquiridos através da experiência ou estudo.",
-      example: "Sua sabedoria sobre plantas medicinais impressionava todos."
-    }
-  ],
-  synonyms: ["conhecimento", "prudência", "discernimento", "saber", "inteligência"],
-  antonyms: ["ignorância", "imprudência", "insensatez"],
-  audioUrl: undefined // Would contain actual audio URL
-};
+import { searchWords, getWordByTerm, type Word } from "@/services/words/words.service";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button-custom";
 
 export default function Dictionary() {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentWord, setCurrentWord] = useState<typeof mockWordData | null>(null);
+  const [results, setResults] = useState<Word[]>([]);
+  const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 10;
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
-    
+  const handleSearch = async (termOverride?: string) => {
+    const term = termOverride || searchTerm.trim();
+    if (!term) return;
+
     setIsLoading(true);
     setCurrentGame(null);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      // In a real app, you'd make an API call here
-      setCurrentWord({
-        ...mockWordData,
-        word: searchTerm.toLowerCase(),
+    setSelectedWord(null);
+
+    try {
+      const response = await searchWords({
+        query: term,
+        page,
+        limit,
       });
+
+      setResults(response.results);
+      setTotal(response.total);
+
+      if (response.results.length === 1) {
+        setSelectedWord(response.results[0]);
+      } else if (response.results.length === 0) {
+        // Fallback: busca exata com criação automática
+        const exactWord = await getWordByTerm(term);
+        setSelectedWord(exactWord);
+        setResults([exactWord]);
+        setTotal(1);
+      }
+    } catch (error) {
+      console.error("Erro na busca:", error);
+      setResults([]);
+      setTotal(0);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
+  };
+
+  // Debounce na busca
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const timer = setTimeout(() => {
+        setPage(1);
+        handleSearch();
+      }, 600);
+      return () => clearTimeout(timer);
+    } else {
+      setResults([]);
+      setSelectedWord(null);
+      setTotal(0);
+    }
+  }, [searchTerm]);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    handleSearch();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleWordClick = (word: Word) => {
+    setSelectedWord(word);
+    setCurrentGame(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Extrai sinônimos como string[]
+  const getSynonymsArray = (word: Word): string[] => {
+    return word.synonyms.map(s => s.term);
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img 
-                src={dictionaryIcon} 
-                alt="Dicionário" 
-                className="w-10 h-10 rounded-lg shadow-sm"
-              />
+              <img src={dictionaryIcon} alt="Dicionário" className="w-10 h-10 rounded-lg shadow-sm" />
               <h1 className="text-2xl font-serif font-bold text-gradient-primary">
                 Dicionário Interativo
               </h1>
             </div>
-            
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -102,8 +140,7 @@ export default function Dictionary() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sair
+                    <LogOut className="mr-2 h-4 w-4" /> Sair
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -116,95 +153,175 @@ export default function Dictionary() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12 animate-fade-in">
+        <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4">
             Descubra o significado das palavras
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            Explore definições, exemplos, sinônimos e muito mais em nossa interface moderna e intuitiva.
+            Definições completas, exemplos reais, sinônimos e pronúncia.
           </p>
-          
           <SearchInput
             value={searchTerm}
             onChange={setSearchTerm}
-            onSearch={handleSearch}
+            onSearch={() => handleSearch()}
             isLoading={isLoading}
-            className="mx-auto animate-bounce-in"
+            placeholder="Buscar palavra..."
+            className="mx-auto max-w-2xl"
           />
         </div>
 
-        {/* Results Section */}
+        {/* Loading */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Buscando definições...</p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton className="h-8 w-40 mb-3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4 mt-2" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
-        {currentWord && !isLoading && (
-          <div className="max-w-4xl mx-auto space-y-8">
-            {!currentGame && <WordCard wordData={currentWord} />}
-            <WordGames 
-              word={currentWord.word} 
-              synonyms={currentWord.synonyms}
-              currentGame={currentGame}
-              onGameChange={setCurrentGame}
-            />
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!currentWord && !isLoading && (
-          <div className="text-center py-16 max-w-2xl mx-auto">
-            <div className="bg-card rounded-xl p-8 shadow-card">
-              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-serif font-semibold text-foreground mb-2">
-                Pronto para começar?
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                Digite uma palavra no campo de busca acima para ver sua definição, exemplos e muito mais.
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="bg-primary-light rounded-lg p-3 mb-2">
-                    <BookOpen className="h-6 w-6 text-primary mx-auto" />
-                  </div>
-                  <p className="font-medium">Definições claras</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-accent-light rounded-lg p-3 mb-2">
-                    <BookOpen className="h-6 w-6 text-accent mx-auto" />
-                  </div>
-                  <p className="font-medium">Exemplos práticos</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-secondary rounded-lg p-3 mb-2">
-                    <BookOpen className="h-6 w-6 text-secondary-foreground mx-auto" />
-                  </div>
-                  <p className="font-medium">Sinônimos</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-warning/10 rounded-lg p-3 mb-2">
-                    <BookOpen className="h-6 w-6 text-warning mx-auto" />
-                  </div>
-                  <p className="font-medium">Pronúncia</p>
-                </div>
+        {/* Resultados */}
+        {!isLoading && results.length > 0 && (
+          <>
+            {/* Palavra selecionada */}
+            {selectedWord && (
+              <div className="max-w-4xl mx-auto mb-12">
+                <WordCard wordData={selectedWord} />
+                <WordGames
+                  word={selectedWord.term}
+                  synonyms={getSynonymsArray(selectedWord)}
+                  currentGame={currentGame}
+                  onGameChange={setCurrentGame}
+                />
               </div>
+            )}
+
+            {/* Lista de resultados */}
+            <div className="max-w-6xl mx-auto">
+              <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+                <Search className="w-6 h-6" />
+                {total} resultado{total > 1 ? "s" : ""} para "{searchTerm}"
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {results.map((word) => (
+                  <Card
+                    key={word.id}
+                    className={`cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] border-2 ${selectedWord?.id === word.id ? "border-primary shadow-lg" : "border-transparent"
+                      }`}
+                    onClick={() => handleWordClick(word)}
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-xl flex items-center justify-between">
+                        <span className="truncate">{word.term}</span>
+                        {word.audioUrl && (
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <Volume2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </CardTitle>
+                      {word.phonetic && (
+                        <p className="text-sm text-muted-foreground italic">{word.phonetic}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {word.definitions.slice(0, 2).map((def) => (
+                          <div key={def.id}>
+                            <Badge variant="secondary" className="mb-1">
+                              {def.partOfSpeech}
+                            </Badge>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {def.meaning}
+                            </p>
+                          </div>
+                        ))}
+                        {word.definitions.length > 2 && (
+                          <p className="text-xs text-muted-foreground">
+                            +{word.definitions.length - 2} definição{word.definitions.length > 3 ? "s" : ""}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-3">
+                          {word.synonyms.slice(0, 4).map((syn) => (
+                            <Badge key={syn.id} variant="outline" className="text-xs">
+                              {syn.term}
+                            </Badge>
+                          ))}
+                          {word.synonyms.length > 4 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{word.synonyms.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Paginação */}
+              {total > limit && (
+                <div className="flex justify-center gap-3 mt-12">
+                  <Button
+                    variant="outline"  // ← Agora é válido!
+                    disabled={page === 1}
+                    onClick={() => handlePageChange(page - 1)}
+                  >
+                    Anterior
+                  </Button>
+
+                  <span className="flex items-center px-4 text-sm font-medium">
+                    Página {page} de {Math.ceil(total / limit)}
+                  </span>
+
+                  <Button
+                    variant="outline"  // ← Funciona!
+                    disabled={page >= Math.ceil(total / limit)}
+                    onClick={() => handlePageChange(page + 1)}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Estado vazio */}
+        {!isLoading && !selectedWord && searchTerm && results.length === 0 && (
+          <div className="text-center py-20">
+            <BookOpen className="h-20 w-20 text-muted-foreground mx-auto mb-6" />
+            <h3 className="text-2xl font-semibold mb-3">Nenhuma palavra encontrada</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Não encontramos "{searchTerm}". Tente outra grafia ou adicione você mesmo!
+            </p>
+          </div>
+        )}
+
+        {/* Estado inicial */}
+        {!searchTerm && results.length === 0 && (
+          <div className="text-center py-20 max-w-3xl mx-auto">
+            <div className="bg-card rounded-2xl p-12 shadow-xl">
+              <BookOpen className="h-20 w-20 text-primary mx-auto mb-6" />
+              <h3 className="text-3xl font-serif font-bold mb-4">Bem-vindo ao Dicionário</h3>
+              <p className="text-lg text-muted-foreground">
+                Digite uma palavra acima para explorar significados, exemplos e sinônimos.
+              </p>
             </div>
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card/30 mt-16">
+      <footer className="border-t border-border bg-card/30 mt-20">
         <div className="container mx-auto px-4 py-8 text-center">
           <p className="text-muted-foreground">
-            Dicionário Interativo - Expandindo conhecimento através das palavras
+            Dicionário Interativo © 2025 - Feito com ❤️ para quem ama palavras
           </p>
         </div>
       </footer>
